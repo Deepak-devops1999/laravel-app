@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_CREDS = credentials('dockerhub-creds')
+        DOCKER_CREDS = credentials('dockerhub-cred')
         ENV_FILE     = credentials('laravel-env')
         IMAGE_NAME   = 'deepaksharma1999/laravel-assignment'
         CONTAINER_NAME = 'laravel-app'
