@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // Jenkins Credentials
-        DOCKER_CREDS = credentials('dockerhub-creds')
+        DOCKER_CREDS = credentials('dockerhub-cred')
         ENV_FILE     = credentials('laravel-env')
 
         // Docker Image
