@@ -5,7 +5,6 @@ FROM composer:2 AS builder
 
 WORKDIR /app
 
-# Copy only composer files first (better caching)
 COPY composer.json composer.lock ./
 
 RUN composer install \
@@ -15,7 +14,6 @@ RUN composer install \
     --optimize-autoloader \
     --no-scripts
 
-# Copy application source
 COPY . .
 
 ############################
@@ -23,21 +21,27 @@ COPY . .
 ############################
 FROM php:8.2-fpm-alpine
 
-# Install runtime dependencies only
+# Install build + runtime deps
 RUN apk add --no-cache \
     nginx \
     sqlite \
+    sqlite-dev \
     libpng \
     libxml2 \
     oniguruma \
     zip \
     unzip \
-    curl
+    curl \
+    pkgconf \
+    $PHPIZE_DEPS
 
 # Install PHP extensions
 RUN docker-php-ext-install pdo pdo_sqlite
 
-# Configure Nginx
+# Remove build dependencies to reduce size
+RUN apk del $PHPIZE_DEPS sqlite-dev pkgconf
+
+# Nginx runtime setup
 RUN mkdir -p /run/nginx
 
 WORKDIR /var/www/html
@@ -45,7 +49,7 @@ WORKDIR /var/www/html
 # Copy app from builder
 COPY --from=builder /app /var/www/html
 
-# Remove default nginx config (Alpine path)
+# Remove default nginx config
 RUN rm -f /etc/nginx/http.d/default.conf
 
 # Copy Laravel nginx config
@@ -57,6 +61,5 @@ RUN chown -R www-data:www-data /var/www/html \
 
 EXPOSE 80
 
-# Start PHP-FPM and Nginx
 CMD ["sh", "-c", "php-fpm -D && nginx -g 'daemon off;'"]
 
