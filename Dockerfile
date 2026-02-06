@@ -4,7 +4,9 @@
 FROM composer:2 AS builder
 
 WORKDIR /app
-COPY . .
+
+# Copy only composer files first (better caching)
+COPY composer.json composer.lock ./
 
 RUN composer install \
     --no-dev \
@@ -13,38 +15,48 @@ RUN composer install \
     --optimize-autoloader \
     --no-scripts
 
+# Copy application source
+COPY . .
 
 ############################
-# STAGE 2: Runtime
+# STAGE 2: Runtime (Alpine)
 ############################
-FROM php:8.2-fpm
+FROM php:8.2-fpm-alpine
 
-RUN apt-get update && apt-get install -y \
+# Install runtime dependencies only
+RUN apk add --no-cache \
     nginx \
-    sqlite3 \
-    libsqlite3-dev \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    zip unzip curl \
-    && rm -rf /var/lib/apt/lists/*
+    sqlite \
+    libpng \
+    libxml2 \
+    oniguruma \
+    zip \
+    unzip \
+    curl
 
+# Install PHP extensions
 RUN docker-php-ext-install pdo pdo_sqlite
+
+# Configure Nginx
+RUN mkdir -p /run/nginx
 
 WORKDIR /var/www/html
 
+# Copy app from builder
 COPY --from=builder /app /var/www/html
 
-# 🔥 REMOVE DEFAULT NGINX SITE (THIS FIXES THE ISSUE)
-RUN rm -f /etc/nginx/sites-enabled/default
+# Remove default nginx config (Alpine path)
+RUN rm -f /etc/nginx/http.d/default.conf
 
-# COPY OUR LARAVEL NGINX CONFIG
-COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+# Copy Laravel nginx config
+COPY docker/nginx/default.conf /etc/nginx/http.d/default.conf
 
+# Permissions
 RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html/storage /var/www/html/bootstrap/cache
+    && chmod -R 755 storage bootstrap/cache
 
 EXPOSE 80
 
+# Start PHP-FPM and Nginx
 CMD ["sh", "-c", "php-fpm -D && nginx -g 'daemon off;'"]
 
