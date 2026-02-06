@@ -1,12 +1,11 @@
-############################
-# STAGE 1: Composer Build
-############################
-FROM composer:2 AS builder
+##################################
+# STAGE 1: Composer Dependencies
+##################################
+FROM composer:2 AS composer
 
 WORKDIR /app
 
 COPY composer.json composer.lock ./
-
 RUN composer install \
     --no-dev \
     --no-interaction \
@@ -16,12 +15,27 @@ RUN composer install \
 
 COPY . .
 
-############################
-# STAGE 2: Runtime (Alpine)
-############################
+##################################
+# STAGE 2: Frontend Build (Vite)
+##################################
+FROM node:20-alpine AS nodebuilder
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm install
+
+COPY resources resources
+COPY vite.config.js .
+
+RUN npm run build
+
+##################################
+# STAGE 3: Runtime (PHP + Nginx)
+##################################
 FROM php:8.2-fpm-alpine
 
-# Install build + runtime deps
+# Install runtime + build deps
 RUN apk add --no-cache \
     nginx \
     sqlite \
@@ -35,19 +49,22 @@ RUN apk add --no-cache \
     pkgconf \
     $PHPIZE_DEPS
 
-# Install PHP extensions
+# PHP extensions
 RUN docker-php-ext-install pdo pdo_sqlite
 
-# Remove build dependencies to reduce size
+# Remove build deps
 RUN apk del $PHPIZE_DEPS sqlite-dev pkgconf
 
-# Nginx runtime setup
+# Nginx runtime
 RUN mkdir -p /run/nginx
 
 WORKDIR /var/www/html
 
-# Copy app from builder
-COPY --from=builder /app /var/www/html
+# Copy Laravel app
+COPY --from=composer /app /var/www/html
+
+# Copy built frontend assets
+COPY --from=nodebuilder /app/public/build /var/www/html/public/build
 
 # Remove default nginx config
 RUN rm -f /etc/nginx/http.d/default.conf
