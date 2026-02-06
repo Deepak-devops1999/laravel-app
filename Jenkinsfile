@@ -2,9 +2,12 @@ pipeline {
     agent any
 
     environment {
+        // Jenkins Credentials
         DOCKER_CREDS = credentials('dockerhub-cred')
         ENV_FILE     = credentials('laravel-env')
-        IMAGE_NAME   = 'deepaksharma1999/laravel-assignment'
+
+        // Docker details
+        IMAGE_NAME     = 'deepaksharma1999/laravel-assignment'
         CONTAINER_NAME = 'laravel-app'
     }
 
@@ -18,11 +21,9 @@ pipeline {
         }
 
         stage('Create .env from Jenkins Credentials') {
-        steps {
-         sh '''
-         cat << 'EOF' > .env
-              $ENV_FILE  
-              EOF
+    steps {
+        sh '''
+        echo "$ENV_FILE" | base64 -d > .env
         '''
     }
 }
@@ -57,7 +58,9 @@ pipeline {
 
         stage('Push Image to Docker Hub') {
             steps {
-                sh 'docker push $IMAGE_NAME:latest'
+                sh '''
+                docker push $IMAGE_NAME:latest
+                '''
             }
         }
 
@@ -69,7 +72,7 @@ pipeline {
 
                 docker run -d \
                   --name $CONTAINER_NAME \
-                  -p 80:8000 \
+                  -p 80:80 \
                   --env-file .env \
                   $IMAGE_NAME:latest
                 '''
