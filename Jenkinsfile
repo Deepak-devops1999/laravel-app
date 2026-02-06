@@ -18,12 +18,14 @@ pipeline {
         }
 
         stage('Create .env from Jenkins Credentials') {
-            steps {
-                sh '''
-                echo "$ENV_FILE" > .env
-                '''
-            }
-        }
+        steps {
+         sh '''
+         cat << 'EOF' > .env
+              $ENV_FILE  
+              EOF
+        '''
+    }
+}
 
         stage('Build Docker Image (Basic Test)') {
             steps {
