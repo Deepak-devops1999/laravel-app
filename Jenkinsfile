@@ -2,12 +2,9 @@ pipeline {
     agent any
 
     environment {
-        // Jenkins Credentials
-        DOCKER_CREDS = credentials('dockerhub-cred')
+        DOCKER_CREDS = credentials('dockerhub-creds')
         ENV_FILE     = credentials('laravel-env')
-
-        // Docker Image
-        IMAGE_NAME = 'deepaksharma1999/laravel-assignment'
+        IMAGE_NAME   = 'deepaksharma1999/laravel-assignment'
         CONTAINER_NAME = 'laravel-app'
     }
 
@@ -58,9 +55,7 @@ pipeline {
 
         stage('Push Image to Docker Hub') {
             steps {
-                sh '''
-                docker push $IMAGE_NAME:latest
-                '''
+                sh 'docker push $IMAGE_NAME:latest'
             }
         }
 
@@ -89,3 +84,4 @@ pipeline {
         }
     }
 }
+
